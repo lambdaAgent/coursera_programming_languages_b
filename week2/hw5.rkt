@@ -25,16 +25,18 @@
 ; (a) Write a Racket function racketlist->mupllist that takes a Racket list (presumably of mupl
 ; values but that will not affect your solution) and produces an analogous mupl list with the same
 ; elements in the same order.
-(define (racketlist->mupllist r-list)
-  (cond [(null? r-list) (aunit)]
-        [else (apair (car r-list) (racketlist->mupllist (cdr r-list)))]))
+(define (racketlist->mupllist rl)
+  (cond [(null? rl) (aunit)]
+        [(null? (cdr rl)) (apair (car rl) (aunit))]
+        [#t (apair (car rl) (racketlist->mupllist (cdr rl)))]))
 
 ;(b) Write a Racket function mupllist->racketlist that takes a mupl list (presumably of mupl
 ; values but that will not aect your solution) and produces an analogous Racket list (of mupl
 ; values) with the same elements in the same order.
-(define (mupllist->racketlist mupllist)
-  (cond [(aunit? mupllist) null]
-        [else (apair (apair-e1 mupllist) (mupllist->racketlist (apair-e2 mupllist)))]))
+(define (mupllist->racketlist ml)
+  (cond [(aunit? ml) '()]
+        [(apair? ml) (cons (apair-e1 ml) (mupllist->racketlist (apair-e2 ml)))]
+        [#t ml]))
 
 ;; CHANGE (put your solutions here)
 
@@ -58,6 +60,8 @@
 (define (eval-under-env e env)
   (cond [(var? e) 
          (envlookup env (var-string e))]
+        [(int? e) e]
+       
         [(add? e) 
          (let ([v1 (eval-under-env (add-e1 e) env)]
                [v2 (eval-under-env (add-e2 e) env)])
@@ -66,7 +70,6 @@
                (int (+ (int-num v1) 
                        (int-num v2)))
                (error "MUPL addition applied to non-number")))]
-        [(int? e) e]
         [(fun? e) (closure env e)]
         [(closure? e) (eval-under-env (closure-fun e) (closure-env e))]
         [(aunit? e) e]
@@ -83,6 +86,9 @@
                    (eval-under-env (ifgreater-e3 e) env)
                    (eval-under-env (ifgreater-e4 e) env))
                (error "MUPL ifgreater applied to non-number")))]
+        [(apair? e) (apair
+                     (eval-under-env (apair-e1 e) env)
+                     (eval-under-env (apair-e2 e) env))]
         [(fst? e)
           (let ([exp (eval-under-env (fst-e e) env)])
                 (if (apair? exp) (apair-e1 exp)
@@ -91,6 +97,7 @@
           (let ([exp (eval-under-env (snd-e e) env)])
                 (if (apair? exp) (apair-e2 exp)
                     (error "must be apair")))]
+        
         [(mlet? e)
          (let* ([value (eval-under-env (mlet-e e) env)]
                 [env (cons (cons (mlet-var e) value) env)])
@@ -115,7 +122,7 @@
 ;; Problem 3
 
 (define (ifaunit e1 e2 e3)
-  (ifgreater (isaunit e1) (int 0) e3 e2))
+  (ifgreater (isaunit e1) (int 0) e2 e3))
 
 (define (mlet* lstlst e2)
   (if (null? lstlst)
@@ -124,7 +131,11 @@
         (mlet (car d) (cdr d) (mlet* (cdr lstlst) e2)))))
 
 (define (ifeq e1 e2 e3 e4)
-  (if (= (eval-exp e1) (eval-exp e2)) e3 e4))
+  (let ([a (eval-exp e1)]
+        [b (eval-exp e2)])
+    (ifgreater a b e4
+               (ifgreater (add a (int 1)) b e3 e4))))
+
 
 ;; Problem 4
 
